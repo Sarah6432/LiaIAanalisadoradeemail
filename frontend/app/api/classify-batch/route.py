@@ -1,13 +1,13 @@
-# Conteúdo CORRIGIDO para: frontend/app/api/classify-batch/route.py
+# Conteúdo FINAL e CORRIGIDO para: frontend/app/api/classify-batch/route.py
 
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import httpx
 import os
 import asyncio
 
-# --- Modelos de Dados (Pydantic) ---
+# --- Modelos de Dados ---
 class BatchInput(BaseModel):
     text: str
 
@@ -17,20 +17,17 @@ class ClassificationResponse(BaseModel):
     suggested_reply: str
     confidence_score: float
 
-# --- Configuração da Aplicação ---
-# Vercel gerencia o ciclo de vida do app, então o título e a versão não são tão relevantes aqui.
 app = FastAPI()
 
 # --- Configuração de CORS ---
-# Adiciona a URL de produção da Vercel dinamicamente
 VERCEL_URL = os.environ.get("VERCEL_URL")
-origins = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-]
+origins = ["http://localhost:3000"]
+# Adiciona dinamicamente a URL de produção E as URLs de preview da Vercel
 if VERCEL_URL:
-    # A Vercel fornece a URL base do deploy na variável de ambiente VERCEL_URL
     origins.append(f"https://{VERCEL_URL}")
+    # Para branches de preview da Vercel (ex: lia-git-my-feature-sarah.vercel.app)
+    origins.append(f"https://lia-i-aanalisadoradeemail-{os.environ.get('VERCEL_GIT_COMMIT_REF', '')}-{os.environ.get('VERCEL_GIT_REPO_SLUG', '')}.vercel.app")
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -38,25 +35,28 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    allow_origin_regex=r"https://lia-i-aanalisadoradeemail-.*\.vercel\.app" # Garante que todos os previews funcionem
 )
 
-
-HUGGING_FACE_API_KEY = os.environ.get("HUGGING_FACE_API_KEY")
-API_URL_CLASSIFICATION = (
-    "https://api-inference.huggingface.co/models/facebook/bart-large-mnli"
-)
-HEADERS = {"Authorization": f"Bearer {HUGGING_FACE_API_KEY}"}
-
-# --- O resto do seu código de lógica permanece exatamente o mesmo ---
+# --- Constantes e Palavras-chave ---
+API_URL_CLASSIFICATION = "https://api-inference.huggingface.co/models/facebook/bart-large-mnli"
 _DEFAULT_PRODUCTIVE = ["reunião", "agendar", "status", "pedido", "suporte", "orçamento", "cotação", "prazo", "entrega", "proposta"]
 PRODUCTIVE_KEYWORDS = [kw.strip().lower() for kw in os.environ.get("PRODUCTIVE_KEYWORDS", ",".join(_DEFAULT_PRODUCTIVE)).split(",") if kw.strip()]
 MIN_PRODUCTIVE_CONFIDENCE = float(os.environ.get("MIN_PRODUCTIVE_CONFIDENCE", "0.75"))
 
-async def get_async_client():
-    async with httpx.AsyncClient() as client:
-        yield client
-
+# --- Lógica da API ---
 async def classify_single_email(email_text: str, client: httpx.AsyncClient) -> ClassificationResponse:
+    # 1. Pega a chave da API DENTRO da função (ponto crucial)
+    HUGGING_FACE_API_KEY = os.environ.get("HUGGING_FACE_API_KEY")
+
+    # 2. Verifica se a chave existe ANTES de usá-la
+    if not HUGGING_FACE_API_KEY:
+        # Este erro agora será claro nos logs da Vercel
+        raise HTTPException(status_code=500, detail="Chave da API da Hugging Face não foi configurada nas variáveis de ambiente da Vercel.")
+
+    # 3. Define os Headers DENTRO da função, no momento do uso
+    HEADERS = {"Authorization": f"Bearer {HUGGING_FACE_API_KEY}"}
+
     if not email_text.strip():
         return None
     try:
@@ -80,17 +80,16 @@ async def classify_single_email(email_text: str, client: httpx.AsyncClient) -> C
             suggested_reply=reply,
             confidence_score=confidence,
         )
-    except httpx.HTTPStatusError:
+    except httpx.HTTPStatusError as e:
+        print(f"Erro da API da Hugging Face: {e.response.status_code} - {e.response.text}")
         return ClassificationResponse(
             original_email=email_text,
             category="erro",
-            suggested_reply="Falha ao processar este email.",
+            suggested_reply="Falha ao comunicar com a IA. Verifique a chave da API.",
             confidence_score=0.0,
         )
 
-# --- MUDANÇA PRINCIPAL AQUI ---
-# A rota agora responde para a raiz '/', pois a Vercel já cuidou do caminho /api/classify-batch
-@app.post("/", response_model=list[ClassificationResponse])
+@app.post("/")
 async def classify_batch(data: BatchInput):
     emails = [email.strip() for email in data.text.split("---") if email.strip()]
     if not emails:
@@ -100,7 +99,6 @@ async def classify_batch(data: BatchInput):
         results = await asyncio.gather(*tasks)
     return [res for res in results if res is not None]
 
-# Opcional: handler para GET na raiz da API, útil para testar se a API está no ar
 @app.get("/")
 def read_root():
     return {"status": "API está funcionando"}
