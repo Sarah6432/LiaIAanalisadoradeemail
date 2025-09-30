@@ -5,7 +5,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import httpx
 import os
-from dotenv import load_dotenv
 import asyncio
 
 # --- Modelos de Dados (Pydantic) ---
@@ -41,7 +40,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-load_dotenv()
+
 HUGGING_FACE_API_KEY = os.environ.get("HUGGING_FACE_API_KEY")
 API_URL_CLASSIFICATION = (
     "https://api-inference.huggingface.co/models/facebook/bart-large-mnli"
