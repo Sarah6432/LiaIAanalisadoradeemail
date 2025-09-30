@@ -77,12 +77,7 @@ export default function UploadForm() {
         className="bg-white dark:bg-gray-800 shadow-lg rounded-lg px-8 pt-6 pb-8 mb-6"
       >
         <div className="mb-4">
-          <label
-            className="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2"
-            htmlFor="emailText"
-          >
-            Cole os emails abaixo (separados por "---") ou carregue um arquivo .txt
-          </label>
+          <label className="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2" htmlFor="emailText">Cole os emails abaixo, separados por uma linha com (---)</label>
           <textarea
             id="emailText"
             value={emailText}
