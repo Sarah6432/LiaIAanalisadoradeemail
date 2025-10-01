@@ -34,10 +34,10 @@ app.add_middleware(
         "http://localhost:3000", 
         "http://127.0.0.1:3000",
         "https://lia-i-aanalisadoradeemail.vercel.app"
+        "https://lia-i-aanalisadoradeemail-bpfuv3e1a-sarah-limas-projects.vercel.app",
+        "https://.*-sarah-limas-projects\.vercel\.app",
     ],
-    
-    # Mantemos a regra para permitir os deploys de preview da Vercel
-    allow_origin_regex=r"https://.*-sarah-limas-projects\.vercel\.app",
+    allow_origin_regex=r"https://*-sarah-limas-projects\.vercel\.app",
     
     allow_credentials=True,
     allow_methods=["*"],
