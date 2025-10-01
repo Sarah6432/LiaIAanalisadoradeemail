@@ -7,7 +7,6 @@ from dotenv import load_dotenv
 import asyncio
 
 
-#correções
 class BatchInput(BaseModel):
     text: str
 
@@ -27,12 +26,17 @@ app = FastAPI(
 
 # --- Configuração de CORS (CORRIGIDO) ---
 # Permite que o frontend (rodando em outra porta/domínio) acesse a API.
+# --- Configuração de CORS (VERSÃO FINAL CORRIGIDA) ---
 app.add_middleware(
     CORSMiddleware,
-    # Permite origens de localhost para desenvolvimento
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    # Adicionamos a URL de produção do seu frontend à lista de permissões explícitas
+    allow_origins=[
+        "http://localhost:3000", 
+        "http://127.0.0.1:3000",
+        "https://lia-i-aanalisadoradeemail.vercel.app"
+    ],
     
-    # Permite qualquer subdomínio de preview ou produção da Vercel para o seu projeto.
+    # Mantemos a regra para permitir os deploys de preview da Vercel
     allow_origin_regex=r"https://.*-sarah-limas-projects\.vercel\.app",
     
     allow_credentials=True,
