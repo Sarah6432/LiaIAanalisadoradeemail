@@ -25,21 +25,21 @@ app = FastAPI(
     version="2.0.0",
 )
 
-# --- Configuração de CORS ---
+# --- Configuração de CORS (CORRIGIDO) ---
 # Permite que o frontend (rodando em outra porta/domínio) acesse a API.
-origins = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-]
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
-    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:\d+)?",
+    # Permite origens de localhost para desenvolvimento
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    
+    # Permite qualquer subdomínio de preview ou produção da Vercel para o seu projeto.
+    allow_origin_regex=r"https://.*-sarah-limas-projects\.vercel\.app",
+    
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 load_dotenv()
 HUGGING_FACE_API_KEY = os.environ.get("HUGGING_FACE_API_KEY")
@@ -79,9 +79,6 @@ async def classify_single_email(
     if not email_text.strip():
         return None
     
-    # --- CORREÇÃO APLICADA AQUI ---
-    # O bloco try/except agora captura tanto erros de status (ex: 401, 503)
-    # quanto erros de timeout (demora para responder).
     try:
         payload = {
             "inputs": email_text,
@@ -131,7 +128,6 @@ async def classify_batch(data: BatchInput):
     if not emails:
         raise HTTPException(status_code=400, detail="Nenhum email válido fornecido.")
 
-    # --- CORREÇÃO APLICADA AQUI ---
     # O timeout foi aumentado para 60 segundos para dar tempo para a API do
     # Hugging Face responder, mesmo em um "cold start".
     async with httpx.AsyncClient(timeout=60.0) as client:
