@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import httpx
@@ -73,21 +73,15 @@ PRODUCTIVE_KEYWORDS = [
 MIN_PRODUCTIVE_CONFIDENCE = float(os.environ.get("MIN_PRODUCTIVE_CONFIDENCE", "0.75"))
 
 
-async def get_async_client():
-    async with httpx.AsyncClient() as client:
-        yield client
-
-
-async def get_async_client():
-    async with httpx.AsyncClient() as client:
-        yield client
-
-
 async def classify_single_email(
     email_text: str, client: httpx.AsyncClient
 ) -> ClassificationResponse:
     if not email_text.strip():
         return None
+    
+    # --- CORREÇÃO APLICADA AQUI ---
+    # O bloco try/except agora captura tanto erros de status (ex: 401, 503)
+    # quanto erros de timeout (demora para responder).
     try:
         payload = {
             "inputs": email_text,
@@ -121,11 +115,12 @@ async def classify_single_email(
             suggested_reply=reply,
             confidence_score=confidence,
         )
-    except httpx.HTTPStatusError:
+    except (httpx.HTTPStatusError, httpx.TimeoutException) as e:
+        # Retorna uma resposta de erro controlada em vez de quebrar a aplicação
         return ClassificationResponse(
             original_email=email_text,
-            category="erro",
-            suggested_reply="Falha ao processar este email.",
+            category="erro_api",
+            suggested_reply=f"Falha ao processar: a API externa falhou ou demorou. Erro: {type(e).__name__}",
             confidence_score=0.0,
         )
 
@@ -135,7 +130,12 @@ async def classify_batch(data: BatchInput):
     emails = [email.strip() for email in data.text.split("---") if email.strip()]
     if not emails:
         raise HTTPException(status_code=400, detail="Nenhum email válido fornecido.")
-    async with httpx.AsyncClient(timeout=30.0) as client:
+
+    # --- CORREÇÃO APLICADA AQUI ---
+    # O timeout foi aumentado para 60 segundos para dar tempo para a API do
+    # Hugging Face responder, mesmo em um "cold start".
+    async with httpx.AsyncClient(timeout=60.0) as client:
         tasks = [classify_single_email(email, client) for email in emails]
         results = await asyncio.gather(*tasks)
+    
     return [res for res in results if res is not None]
