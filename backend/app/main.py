@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 import asyncio
 
 
-# --- Modelos de Dados (Pydantic) ---
+#correções
 class BatchInput(BaseModel):
     text: str
 
