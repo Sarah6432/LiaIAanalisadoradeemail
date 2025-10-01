@@ -130,7 +130,7 @@ async def classify_single_email(
         )
 
 
-@app.post("/", response_model=list[ClassificationResponse])
+@app.post("/classify-batch/", response_model=list[ClassificationResponse])
 async def classify_batch(data: BatchInput):
     emails = [email.strip() for email in data.text.split("---") if email.strip()]
     if not emails:
