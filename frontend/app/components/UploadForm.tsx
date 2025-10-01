@@ -49,13 +49,12 @@ export default function UploadForm() {
     reader.readAsText(file);
   };
 
-  // --- Função para Submeter o Formulário ---
- const handleSubmit = async (event: React.FormEvent) => {
+  // --- Função para Submeter o Formulário (VERSÃO CORRIGIDA) ---
+  const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setIsLoading(true);
     setError(null);
     setResults(null);
-    setFileName('');
 
     try {
       // Pega a URL da API da variável de ambiente (configurada na Vercel)
@@ -68,9 +67,9 @@ export default function UploadForm() {
         return;
       }
       
-      // Faz a chamada para a URL completa do backend.
-      // A rota é a raiz "/", pois é o que definimos no nosso backend FastAPI.
-      const response = await axios.post(`${apiUrl}/`, {
+      // --- CORREÇÃO APLICADA AQUI ---
+      // Adicionamos o caminho correto do endpoint: /classify-batch/
+      const response = await axios.post(`${apiUrl}/classify-batch/`, {
         text: emailText,
       });
 
