@@ -50,7 +50,7 @@ export default function UploadForm() {
   };
 
   // --- Função para Submeter o Formulário ---
-  const handleSubmit = async (event: React.FormEvent) => {
+ const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setIsLoading(true);
     setError(null);
@@ -62,11 +62,14 @@ export default function UploadForm() {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL;
 
       if (!apiUrl) {
-        throw new Error("A URL da API não está configurada.");
+        // Se a variável não estiver configurada, dará um erro claro
+        setError("Erro de configuração: A URL da API não foi encontrada.");
+        setIsLoading(false);
+        return;
       }
       
-      // Faz a chamada para a URL completa do backend separado
-      // A rota é a raiz "/", pois é o que definimos no nosso backend FastAPI
+      // Faz a chamada para a URL completa do backend.
+      // A rota é a raiz "/", pois é o que definimos no nosso backend FastAPI.
       const response = await axios.post(`${apiUrl}/`, {
         text: emailText,
       });
@@ -74,7 +77,7 @@ export default function UploadForm() {
       setResults(response.data);
     } catch (err) {
       setError(
-        "Falha ao processar os emails. Verifique o console e a API, e tente novamente."
+        "Falha ao comunicar com a API. Verifique o console."
       );
       console.error("Axios error:", err);
     } finally {
