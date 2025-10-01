@@ -36,8 +36,10 @@ app.add_middleware(
         "https://lia-i-aanalisadoradeemail.vercel.app"
         "https://lia-i-aanalisadoradeemail-bpfuv3e1a-sarah-limas-projects.vercel.app",
         "https://.*-sarah-limas-projects\.vercel\.app",
+        r"https://*-sarah-limas-projects\.vercel\.app",
+        r"https://.*-sarah-limas-projects\.vercel\.app"
     ],
-    allow_origin_regex=r"https://*-sarah-limas-projects\.vercel\.app",
+    allow_origin_regex=r"https://.*-sarah-limas-projects\.vercel\.app",
     
     allow_credentials=True,
     allow_methods=["*"],
