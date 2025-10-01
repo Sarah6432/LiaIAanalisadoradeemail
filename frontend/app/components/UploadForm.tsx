@@ -69,7 +69,7 @@ export default function UploadForm() {
       
       // --- CORREÇÃO APLICADA AQUI ---
       // Adicionamos o caminho correto do endpoint: /classify-batch/
-      const response = await axios.post(`${apiUrl}/classify-batch/`, {
+      const response = await axios.post(`${apiUrl}/classify-batch`, {
         text: emailText,
       });
 
