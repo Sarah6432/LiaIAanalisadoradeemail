@@ -1,3 +1,5 @@
+// Conteúdo completo para: frontend/app/components/UploadForm.tsx
+
 "use client";
 
 import { useState, ChangeEvent } from "react";
@@ -56,9 +58,19 @@ export default function UploadForm() {
     setFileName('');
 
     try {
-      const response = await axios.post(`/api/classify-batch`, {
+      // Pega a URL da API da variável de ambiente (configurada na Vercel)
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+
+      if (!apiUrl) {
+        throw new Error("A URL da API não está configurada.");
+      }
+      
+      // Faz a chamada para a URL completa do backend separado
+      // A rota é a raiz "/", pois é o que definimos no nosso backend FastAPI
+      const response = await axios.post(`${apiUrl}/`, {
         text: emailText,
       });
+
       setResults(response.data);
     } catch (err) {
       setError(
@@ -100,7 +112,6 @@ export default function UploadForm() {
           <button
             type="submit"
             disabled={isLoading || !emailText}
-            // --- AQUI ESTÁ A ALTERAÇÃO ---
             className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-4 rounded-lg focus:outline-none focus:shadow-outline disabled:bg-gray-500 disabled:cursor-not-allowed transition-colors duration-300"
           >
             {isLoading ? "Analisando..." : "Classificar Emails em Lote"}
@@ -108,7 +119,6 @@ export default function UploadForm() {
         </div>
       </form>
 
-      {/* O resto do código permanece o mesmo */}
       {error && (
         <div
           className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg relative text-center mb-6"
