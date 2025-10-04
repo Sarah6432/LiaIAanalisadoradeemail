@@ -20,7 +20,7 @@ class ClassificationResponse(BaseModel):
 # --- Configuração da Aplicação ---
 app = FastAPI(
     title="AutoU Email Classifier API",
-    version="3.0.1", # Versão atualizada com timeout maior
+    version="3.0.3", # Versão com correção do typo
 )
 
 # --- Configuração de CORS ---
@@ -47,7 +47,7 @@ API_URL_CLASSIFICATION = (
     "https://api-inference.huggingface.co/models/facebook/bart-large-mnli"
 )
 API_URL_GENERATION = (
-    "https://api-inference.huggingface.co/models/google/flan-t5-base"
+    "https://api-inference.huggingface.co/models/bigscience/mt0-small"
 )
 
 # --- Heurísticas ---
@@ -63,7 +63,7 @@ async def classify_single_email(
         return None
     
     try:
-        # --- ETAPA 1: CLASSIFICAÇÃO (como antes) ---
+        # --- ETAPA 1: CLASSIFICAÇÃO ---
         payload_class = {
             "inputs": email_text,
             "parameters": {"candidate_labels": ["produtivo", "improdutivo"]},
@@ -82,12 +82,11 @@ async def classify_single_email(
             category = "produtivo"
             confidence = max(confidence, MIN_PRODUCTIVE_CONFIDENCE)
 
-        # --- ETAPA 2: GERAÇÃO DA RESPOSTA (LÓGICA ATUALIZADA) ---
+        # --- ETAPA 2: GERAÇÃO DA RESPOSTA ---
         reply = ""
         if category == "improdutivo":
             reply = "Obrigado pela sua mensagem."
         else:
-            # Se for produtivo, chamamos a outra API para gerar uma resposta
             try:
                 prompt = f"Write a short and professional reply to the following email. Start with 'Olá,'.\n\nEmail:\n\"\"\"{email_text}\"\"\"\n\nReply:"
                 payload_gen = {"inputs": prompt}
@@ -102,7 +101,10 @@ async def classify_single_email(
                 reply = generated_text
 
             except Exception as e:
-                print(f"Erro na geração de texto: {e}")
+                error_details = str(e)
+                if isinstance(e, httpx.HTTPStatusError):
+                    error_details = f"{e} - Response body: {e.response.text}"
+                print(f"--- ERRO NA GERAÇÃO DE TEXTO ---\n{error_details}\n---------------------------------")
                 reply = f"Olá,\n\nAgradecemos o seu contato sobre: \"{email_text[:50]}...\".\n\nSua solicitação foi recebida e será processada em breve.\n\nAtenciosamente,"
         
         return ClassificationResponse(
@@ -112,6 +114,7 @@ async def classify_single_email(
             confidence_score=confidence,
             raw_hf_response=hf_result,
         )
+    # AQUI ESTÁ A CORREÇÃO
     except (httpx.HTTPStatusError, httpx.TimeoutException) as e:
         return ClassificationResponse(
             original_email=email_text,
@@ -127,8 +130,7 @@ async def classify_batch(data: BatchInput):
     if not emails:
         raise HTTPException(status_code=400, detail="Nenhum email válido fornecido.")
 
-    # Aumentei o timeout para 3 minutos para lidar com "cold starts" da API de geração.
-    async with httpx.AsyncClient(timeout=180.0) as client: # <-- AQUI ESTÁ A MUDANÇA
+    async with httpx.AsyncClient(timeout=180.0) as client:
         tasks = [classify_single_email(email, client) for email in emails]
         results = await asyncio.gather(*tasks)
     
