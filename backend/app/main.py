@@ -13,7 +13,7 @@ load_dotenv()
 HUGGING_FACE_API_KEY = os.environ.get("HUGGING_FACE_API_KEY")
 
 HEADERS = {"Authorization": f"Bearer {HUGGING_FACE_API_KEY}"}
-API_URL = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.1"
+API_URL = "https://api-inference.huggingface.co/models/bigscience/mt0-small"
 
 
 # --- Modelos Pydantic (Schema da nossa API) ---
