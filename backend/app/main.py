@@ -12,8 +12,8 @@ load_dotenv()
 HUGGING_FACE_API_KEY = os.environ.get("HUGGING_FACE_API_KEY")
 HEADERS = {"Authorization": f"Bearer {HUGGING_FACE_API_KEY}"}
 API_URL_CLASSIFICATION = "https://api-inference.huggingface.co/models/facebook/bart-large-mnli"
-### NOVO: URL do modelo de GERAÇÃO de texto ###
-API_URL_GENERATION = "https://api-inference.huggingface.co/models/google/flan-t5-base"
+### MUDANÇA: Usando um modelo de geração de texto MAIS RÁPIDO ###
+API_URL_GENERATION = "https://api-inference.huggingface.co/models/distilgpt2"
 
 
 # --- Modelos Pydantic ---
@@ -29,7 +29,7 @@ class ClassificationResponse(BaseModel):
 # --- Configuração da Aplicação FastAPI ---
 app = FastAPI(
     title="AutoU Email Classifier & Generator API",
-    version="8.0.0", # Nova versão com geração de resposta
+    version="8.1.0", # Versão Otimizada
 )
 
 # --- Configuração de CORS ---
@@ -42,28 +42,32 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-### NOVO: Função dedicada para gerar a resposta com IA ###
+### FUNÇÃO DE GERAÇÃO ATUALIZADA para o novo modelo ###
 async def generate_intelligent_reply(email_text: str, client: httpx.AsyncClient) -> Optional[str]:
-    """Gera uma resposta de email usando um modelo de geração de texto."""
+    """Gera uma resposta de email usando o modelo distilgpt2."""
     try:
-        # Criamos um "prompt" para instruir a IA
-        prompt = f"Write a short, professional, and helpful reply to the following email:\n\n---\n{email_text}\n---\n\nReply:"
+        # Prompt otimizado para um modelo de "continuação de texto" como o GPT-2
+        prompt = f"This is a short and professional reply to the following email:\n\nEmail: {email_text}\n\nReply:"
         
-        payload = {"inputs": prompt}
-        response = await client.post(API_URL_GENERATION, headers=HEADERS, json=payload, timeout=30.0)
+        # Parâmetros para controlar o tamanho da resposta
+        payload = {"inputs": prompt, "parameters": {"max_new_tokens": 70, "do_sample": True, "temperature": 0.7}}
+        response = await client.post(API_URL_GENERATION, headers=HEADERS, json=payload, timeout=20.0) # Timeout de 20s
         response.raise_for_status()
         
         result = response.json()
         if result and isinstance(result, list) and 'generated_text' in result[0]:
-            return result[0]['generated_text'].strip()
+            # O resultado inclui o prompt, então precisamos removê-lo
+            full_text = result[0]['generated_text']
+            # Retorna apenas o texto que foi gerado DEPOIS do nosso prompt
+            reply_only = full_text.replace(prompt, "").strip()
+            return reply_only
             
     except Exception as e:
         print(f"--- ERRO NA GERAÇÃO DA RESPOSTA ---\n{e}\n---------------------------------")
     
-    return None # Retorna None se a geração falhar
+    return None
 
-
-# --- Função Principal de Análise (Atualizada) ---
+# --- Função Principal de Análise ---
 async def analyze_single_email(email_text: str, client: httpx.AsyncClient) -> Optional[ClassificationResponse]:
     if not HUGGING_FACE_API_KEY:
         raise HTTPException(status_code=500, detail="API Key da Hugging Face não configurada no servidor.")
@@ -71,12 +75,12 @@ async def analyze_single_email(email_text: str, client: httpx.AsyncClient) -> Op
         return None
 
     try:
-        # Etapa 1: Classificação do email (como antes)
-        payload = {
+        # Etapa 1: Classificação
+        classification_payload = {
             "inputs": email_text,
             "parameters": {"candidate_labels": ["produtivo", "improdutivo"]},
         }
-        response = await client.post(API_URL_CLASSIFICATION, headers=HEADERS, json=payload, timeout=30.0)
+        response = await client.post(API_URL_CLASSIFICATION, headers=HEADERS, json=classification_payload, timeout=20.0)
         response.raise_for_status()
         
         result = response.json()
@@ -92,28 +96,11 @@ async def analyze_single_email(email_text: str, client: httpx.AsyncClient) -> Op
         if category == "improdutivo":
             reply = "Obrigado pela sua mensagem. Arquivamos para referência futura."
         else:
-            # ### LÓGICA ATUALIZADA ###
-            # Tenta gerar uma resposta inteligente
             generated_reply = await generate_intelligent_reply(email_text, client)
-            
-            # Se a IA gerar uma resposta com sucesso, a usamos.
             if generated_reply:
                 reply = generated_reply
-            # Senão (se falhar), usamos a resposta padrão como um fallback seguro.
-            else:
-                try:
-                    first_line = email_text.strip().splitlines()[0]
-                    subject = first_line[:70] + '...' if len(first_line) > 70 else first_line
-                except IndexError:
-                    subject = "seu contato"
-                
-                reply = (
-                    f"Olá,\n\n"
-                    f'Agradecemos o seu contato sobre "{subject}".\n\n'
-                    f"Sua solicitação foi recebida e já está sendo analisada por nossa equipe. "
-                    f"Retornaremos o mais breve possível com uma atualização.\n\n"
-                    f"Atenciosamente,"
-                )
+            else: # Fallback seguro
+                reply = "Olá,\n\nAgradecemos o seu contato. Sua solicitação foi recebida e será analisada por nossa equipe em breve.\n\nAtenciosamente,"
 
         return ClassificationResponse(
             original_email=email_text,
