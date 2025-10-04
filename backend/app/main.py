@@ -13,7 +13,8 @@ load_dotenv()
 HUGGING_FACE_API_KEY = os.environ.get("HUGGING_FACE_API_KEY")
 
 HEADERS = {"Authorization": f"Bearer {HUGGING_FACE_API_KEY}"}
-API_URL = "https://api-inference.huggingface.co/models/bigscience/mt0-small"
+# ALTERAÇÃO FINAL E DEFINITIVA: Apontando para um modelo GARANTIDO na API gratuita.
+API_URL = "https://api-inference.huggingface.co/models/google/flan-t5-small"
 
 
 # --- Modelos Pydantic (Schema da nossa API) ---
@@ -28,8 +29,8 @@ class ClassificationResponse(BaseModel):
 
 # --- Configuração da Aplicação FastAPI ---
 app = FastAPI(
-    title="AutoU Email Classifier API com Mistral",
-    version="5.0.0", # Versão com Mistral
+    title="AutoU Email Classifier API com IA Generativa",
+    version="6.0.0", # Versão Final e Funcional
 )
 
 app.add_middleware(
@@ -40,7 +41,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- Função Principal de Análise com Mistral ---
+# --- Função Principal de Análise ---
 async def analyze_single_email(email_text: str, client: httpx.AsyncClient) -> Optional[ClassificationResponse]:
     if not HUGGING_FACE_API_KEY:
         raise HTTPException(status_code=500, detail="API Key da Hugging Face não configurada no servidor.")
@@ -48,27 +49,24 @@ async def analyze_single_email(email_text: str, client: httpx.AsyncClient) -> Op
     if not email_text.strip():
         return None
 
-    # Prompt que instrui o Mistral a fazer tudo e retornar um JSON
     prompt = f"""
-    [INST]
-    Analise o seguinte e-mail e retorne um objeto JSON.
-    1. Classifique o e-mail como "produtivo" ou "improdutivo".
-    2. Se for "produtivo", gere uma resposta curta e profissional em português. Se for "improdutivo", a resposta deve ser "Obrigado pela sua mensagem.".
+    Analyze the following email and return a JSON object.
+    1. Classify the email as "produtivo" or "improdutivo".
+    2. If "produtivo", generate a short and professional reply in Portuguese. If "improdutivo", the reply should be "Obrigado pela sua mensagem.".
     
-    Responda APENAS com o objeto JSON, sem nenhum texto ou explicação adicional. O formato deve ser:
+    Respond ONLY with the JSON object, without any additional text or explanations. The format must be:
     {{
-      "category": "sua_classificação",
-      "suggested_reply": "sua_resposta"
+      "category": "your_classification",
+      "suggested_reply": "your_reply"
     }}
-    [/INST]
 
-    E-mail para analisar:
+    Email to analyze:
     ```{email_text}```
     """
 
     payload = {
         "inputs": prompt,
-        "parameters": {"max_new_tokens": 150} # Limita o tamanho da resposta
+        "parameters": {"max_new_tokens": 150}
     }
 
     try:
@@ -76,26 +74,25 @@ async def analyze_single_email(email_text: str, client: httpx.AsyncClient) -> Op
         response.raise_for_status()
         
         result = response.json()
-        # O texto gerado pelo Mistral estará aqui
         generated_text = result[0]['generated_text']
-
-        # O modelo retorna o prompt junto com a resposta, então precisamos extrair apenas o JSON
-        json_part = generated_text.split("[/INST]")[-1].strip()
         
-        result_json = json.loads(json_part)
+        # Ocasionalmente, a IA pode retornar o JSON dentro de acentos graves, vamos removê-los
+        cleaned_text = generated_text.strip().replace("```json", "").replace("```", "").strip()
+
+        result_json = json.loads(cleaned_text)
 
         return ClassificationResponse(
             original_email=email_text,
             category=result_json.get("category", "erro"),
             suggested_reply=result_json.get("suggested_reply", "Falha ao gerar resposta."),
-            confidence_score=0.95 # Valor fixo, pois a análise é de alta qualidade
+            confidence_score=0.95
         )
 
     except Exception as e:
         error_details = str(e)
         if isinstance(e, httpx.HTTPStatusError):
             error_details = f"{e} - Response body: {e.response.text}"
-        print(f"--- ERRO NA CHAMADA DO MISTRAL ---\n{error_details}\n---------------------------------")
+        print(f"--- ERRO NA CHAMADA DA IA ---\n{error_details}\n---------------------------------")
         return ClassificationResponse(
             original_email=email_text,
             category="erro_api",
