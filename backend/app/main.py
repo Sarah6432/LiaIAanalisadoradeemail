@@ -20,7 +20,7 @@ class ClassificationResponse(BaseModel):
 # --- Configuração da Aplicação ---
 app = FastAPI(
     title="AutoU Email Classifier API",
-    version="3.0.0", # Versão atualizada com IA Generativa
+    version="3.0.1", # Versão atualizada com timeout maior
 )
 
 # --- Configuração de CORS ---
@@ -46,7 +46,6 @@ HEADERS = {"Authorization": f"Bearer {HUGGING_FACE_API_KEY}"}
 API_URL_CLASSIFICATION = (
     "https://api-inference.huggingface.co/models/facebook/bart-large-mnli"
 )
-# NOVO: URL para o modelo de geração de texto
 API_URL_GENERATION = (
     "https://api-inference.huggingface.co/models/google/flan-t5-base"
 )
@@ -99,12 +98,10 @@ async def classify_single_email(
                 response_gen.raise_for_status()
                 gen_result = response_gen.json()
                 
-                # O texto gerado geralmente vem dentro de uma lista
                 generated_text = gen_result[0]['generated_text']
                 reply = generated_text
 
             except Exception as e:
-                # Se a geração de texto falhar, usamos uma resposta padrão para não quebrar
                 print(f"Erro na geração de texto: {e}")
                 reply = f"Olá,\n\nAgradecemos o seu contato sobre: \"{email_text[:50]}...\".\n\nSua solicitação foi recebida e será processada em breve.\n\nAtenciosamente,"
         
@@ -130,8 +127,8 @@ async def classify_batch(data: BatchInput):
     if not emails:
         raise HTTPException(status_code=400, detail="Nenhum email válido fornecido.")
 
-    # Aumentei o timeout geral, já que e-mails produtivos farão duas chamadas
-    async with httpx.AsyncClient(timeout=120.0) as client:
+    # Aumentei o timeout para 3 minutos para lidar com "cold starts" da API de geração.
+    async with httpx.AsyncClient(timeout=180.0) as client: # <-- AQUI ESTÁ A MUDANÇA
         tasks = [classify_single_email(email, client) for email in emails]
         results = await asyncio.gather(*tasks)
     
