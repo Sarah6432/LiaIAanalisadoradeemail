@@ -14,7 +14,8 @@ HUGGING_FACE_API_KEY = os.environ.get("HUGGING_FACE_API_KEY")
 
 HEADERS = {"Authorization": f"Bearer {HUGGING_FACE_API_KEY}"}
 # ALTERAÇÃO FINAL E DEFINITIVA: Apontando para um modelo GARANTIDO na API gratuita.
-API_URL = "https://api-inference.huggingface.co/models/google/flan-t5-small"
+API_URL = "https://api-inference.huggingface.co/models/google/flan-t5-base"
+
 
 
 # --- Modelos Pydantic (Schema da nossa API) ---
