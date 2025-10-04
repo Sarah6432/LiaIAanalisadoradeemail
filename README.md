@@ -4,8 +4,8 @@ Lia é uma aplicação web full-stack projetada para classificar e gerar sugest�
 
 Este projeto foi desenvolvido como um case prático para o processo seletivo da empresa AutoU.
 
-### ✨ [Acesse a demonstração ao vivo aqui!]([https://SUA_URL_DO_FRONTEND.vercel.app](https://lia-i-aanalisadoradeemail.vercel.app))
-*(Substitua pela URL do seu frontend na Vercel)*
+### ✨ [Acesse a demonstração ao vivo aqui!]([))
+https://SUA_URL_DO_FRONTEND.vercel.app](https://lia-i-aanalisadoradeemail.vercel.app
 
 ---
 
