@@ -49,7 +49,7 @@ export default function UploadForm() {
     reader.readAsText(file);
   };
 
-  // --- Função para Submeter o Formulário (VERSÃO CORRIGIDA) ---
+  // --- Função para Submeter o Formulário ---
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setIsLoading(true);
@@ -57,19 +57,15 @@ export default function UploadForm() {
     setResults(null);
 
     try {
-      // Pega a URL da API da variável de ambiente (configurada na Vercel)
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+      const apiUrl = "http://127.0.0.1:8000";
 
       if (!apiUrl) {
-        // Se a variável não estiver configurada, dará um erro claro
         setError("Erro de configuração: A URL da API não foi encontrada.");
         setIsLoading(false);
         return;
       }
       
-      // --- CORREÇÃO APLICADA AQUI ---
-      // Adicionamos o caminho correto do endpoint: /classify-batch/
-      const response = await axios.post(`${apiUrl}/classify-batch`, {
+      const response = await axios.post(`${apiUrl}/classify-batch/`, {
         text: emailText,
       });
 
@@ -135,37 +131,65 @@ export default function UploadForm() {
           <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-white">
             Resultados da Análise ({results.length} emails)
           </h2>
-          <div className="space-y-4">
-            {results.map((result, index) => (
-              <div
-                key={index}
-                className="bg-white dark:bg-gray-800 shadow-lg rounded-lg p-6 animate-fade-in"
-              >
-                <p
-                  className="text-sm text-gray-500 dark:text-gray-400 truncate mb-2"
-                  title={result.original_email}
+          <div className="space-y-6"> {/* Aumentei o espaçamento para acomodar o novo conteúdo */}
+            {results.map((result, index) => {
+              {/* --- LÓGICA DO BOTÃO DE EMAIL --- */}
+              const subject = `Re: ${result.original_email.substring(0, 40)}...`;
+              const body = result.suggested_reply;
+              // Codificamos o assunto e corpo para serem usados em uma URL
+              const mailtoLink = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+
+              return (
+                <div
+                  key={index}
+                  className="bg-white dark:bg-gray-800 shadow-lg rounded-lg p-6 animate-fade-in"
                 >
-                  <strong>Email {index + 1}:</strong> {result.original_email}
-                </p>
-                <div className="flex items-center">
-                  <span
-                    className={`px-3 py-1 text-sm font-semibold rounded-full ${
-                      result.category === "produtivo"
-                        ? "bg-green-200 text-green-800"
-                        : result.category === "improdutivo"
-                        ? "bg-yellow-200 text-yellow-800"
-                        : "bg-red-200 text-red-800"
-                    }`}
+                  <p
+                    className="text-sm text-gray-500 dark:text-gray-400 truncate mb-3" // Aumentei a margem inferior
+                    title={result.original_email}
                   >
-                    {result.category.charAt(0).toUpperCase() +
-                      result.category.slice(1)}
-                  </span>
-                  <span className="ml-3 text-xs text-gray-500 dark:text-gray-400">
-                    (Confiança: {(result.confidence_score * 100).toFixed(1)}%)
-                  </span>
+                    <strong>Email {index + 1}:</strong> {result.original_email}
+                  </p>
+                  <div className="flex items-center mb-4"> {/* Adicionei margem inferior */}
+                    <span
+                      className={`px-3 py-1 text-sm font-semibold rounded-full ${
+                        result.category === "produtivo"
+                          ? "bg-green-200 text-green-800"
+                          : result.category === "improdutivo"
+                          ? "bg-yellow-200 text-yellow-800"
+                          : "bg-red-200 text-red-800"
+                      }`}
+                    >
+                      {result.category.charAt(0).toUpperCase() +
+                        result.category.slice(1)}
+                    </span>
+                    <span className="ml-3 text-xs text-gray-500 dark:text-gray-400">
+                      (Confiança: {(result.confidence_score * 100).toFixed(1)}%)
+                    </span>
+                  </div>
+
+                  {/* NOVO: Bloco para exibir a sugestão de resposta */}
+                  <div className="mt-4 border-t pt-4">
+                    <h4 className="font-semibold text-gray-700 dark:text-gray-300 mb-2">Sugestão de Resposta:</h4>
+                    <p className="text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/50 p-3 rounded-md">
+                      {result.suggested_reply}
+                    </p>
+                  </div>
+
+                  {/* NOVO: Botão para abrir o cliente de email */}
+                  <div className="mt-4 flex justify-end">
+                    <a
+                        href={mailtoLink}
+                        target="_blank" // Abre em uma nova aba/janela do cliente de email
+                        rel="noopener noreferrer" // Boa prática de segurança
+                        className="inline-block bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline transition-colors duration-300"
+                    >
+                        Responder por Email
+                    </a>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
