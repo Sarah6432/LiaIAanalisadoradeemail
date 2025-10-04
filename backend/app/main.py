@@ -1,3 +1,4 @@
+# Forçando o redeploy para a versão estável - 04/10 16:30
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
