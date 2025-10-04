@@ -89,7 +89,7 @@ async def analyze_single_email(email_text: str, client: httpx.AsyncClient) -> Op
         )
 
 # --- Endpoint da API ---
-@app.post("/classify-batch", response_model=List[ClassificationResponse])
+@app.post("/classify-batch/", response_model=List[ClassificationResponse])
 async def classify_batch(data: BatchInput):
     emails = [email.strip() for email in data.text.split("---") if email.strip()]
     if not emails:
